@@ -12,7 +12,13 @@
     status: "",
     sort: "title-asc",
     listView: false,
+    page: 1,
+    selected: new Set(),
+    updating: false,
   };
+
+  const PER_PAGE = 50;
+  const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
   function load() {
     try {
@@ -51,6 +57,95 @@
 
   const TMDB_KEY_STORAGE = "movie-collection:tmdb-key";
   const tmdbKey = () => localStorage.getItem(TMDB_KEY_STORAGE) || "";
+
+  async function tmdbGet(url) {
+    let res = await fetch(url);
+    if (res.status === 429) {
+      await sleep(2000);
+      res = await fetch(url);
+    }
+    if (!res.ok) {
+      const err = new Error("HTTP " + res.status);
+      err.status = res.status;
+      throw err;
+    }
+    return res.json();
+  }
+
+  function tmdbSearchUrl(key, title, year) {
+    let url = "https://api.themoviedb.org/3/search/movie?api_key=" +
+      encodeURIComponent(key) + "&language=fr-FR&query=" + encodeURIComponent(title);
+    if (year) url += "&year=" + encodeURIComponent(year);
+    return url;
+  }
+
+  function applyTmdbMovie(m, det) {
+    m.title = det.title || m.title;
+    m.year = (det.release_date || "").slice(0, 4) || m.year;
+    m.director = (det.credits?.crew || []).filter((c) => c.job === "Director")
+      .map((c) => c.name).join(", ") || m.director;
+    m.actors = (det.credits?.cast || []).slice(0, 6).map((c) => c.name).join(", ") || m.actors;
+    m.genre = (det.genres || []).map((g) => g.name).join(", ") || m.genre;
+    m.runtime = det.runtime || m.runtime;
+    m.rating = det.vote_average != null ? Number(det.vote_average.toFixed(1)) : m.rating;
+    m.poster = det.poster_path ? "https://image.tmdb.org/t/p/w500" + det.poster_path : m.poster;
+    m.notes = det.overview || m.notes;
+  }
+
+  async function tmdbUpdateSelected() {
+    const ids = [...state.selected];
+    const key = tmdbKey();
+    if (!key) {
+      alert("Saisissez d’abord votre clé API TMDB dans la fenêtre d’ajout (bouton 🔎 TMDB).");
+      return;
+    }
+    if (!confirm(`Mettre à jour ${ids.length} film(s) via TMDB ?\nLes champs récupérés (titre, année, réalisateur, acteurs, genres, durée, note, affiche, synopsis) seront remplacés.`)) return;
+
+    state.updating = true;
+    $("#progress").classList.remove("hidden");
+    let updated = 0, notFound = 0, failed = 0;
+
+    for (let i = 0; i < ids.length; i++) {
+      if (!state.updating) break;
+      const m = state.movies.find((x) => x.id === ids[i]);
+      if (!m) continue;
+      $("#progress-text").textContent = `Mise à jour TMDB : ${i + 1} / ${ids.length} — ${escapeHtml(m.title)}`;
+      try {
+        const search = await tmdbGet(tmdbSearchUrl(key, m.title, m.year));
+        const best = (search.results || [])[0];
+        if (!best) {
+          notFound++;
+        } else {
+          const det = await tmdbGet("https://api.themoviedb.org/3/movie/" + best.id +
+            "?api_key=" + encodeURIComponent(key) + "&language=fr-FR&append_to_response=credits");
+          applyTmdbMovie(m, det);
+          updated++;
+        }
+      } catch (err) {
+        if (err.status === 401) {
+          alert("Clé API TMDB invalide (401) — mise à jour interrompue.");
+          break;
+        }
+        failed++;
+      }
+      await sleep(150);
+    }
+
+    state.updating = false;
+    $("#progress").classList.add("hidden");
+    state.selected.clear();
+    save();
+    render();
+    if (updated + notFound >= 0 && (updated || notFound || failed))
+      alert(`Mise à jour TMDB terminée : ${updated} mis à jour, ${notFound} introuvable(s), ${failed} erreur(s).`);
+  }
+
+  function updateSelectionUi() {
+    const n = state.selected.size;
+    const btn = $("#btn-tmdb-update");
+    btn.hidden = n === 0;
+    btn.textContent = `Mettre à jour TMDB (${n})`;
+  }
 
   async function tmdbFetch(url) {
     let res;
@@ -280,6 +375,7 @@
       ? `<img src="${escapeHtml(m.poster)}" alt="Affiche de ${escapeHtml(m.title)}" loading="lazy"
             onerror="this.remove()">`
       : "🎞️";
+    const checked = state.selected.has(m.id) ? " checked" : "";
     const year = m.year ? ` · ${m.year}` : "";
     const runtime = m.runtime ? ` · ${m.runtime} min` : "";
     const rating = m.rating != null ? `<span class="rating-pill">★ ${m.rating}</span>` : "";
@@ -305,6 +401,8 @@
           ${notes}
         </div>
         <div class="card-actions">
+          <input type="checkbox" class="card-check" data-check="${m.id}"${checked}
+            title="Sélectionner pour la mise à jour TMDB">
           <button class="btn sm" data-action="toggle">${
             m.status === "vu" ? "Marquer à voir" : "Marquer vu"
           }</button>
@@ -318,11 +416,26 @@
   function render() {
     const grid = $("#grid");
     grid.classList.toggle("list", state.listView);
-    const movies = visibleMovies();
+    const all = visibleMovies();
+    const totalPages = Math.max(1, Math.ceil(all.length / PER_PAGE));
+    state.page = Math.min(state.page, totalPages);
+    const movies = all.slice((state.page - 1) * PER_PAGE, state.page * PER_PAGE);
     grid.innerHTML = movies.map(cardHtml).join("");
-    $("#empty").classList.toggle("hidden", movies.length > 0);
+    $("#empty").classList.toggle("hidden", all.length > 0);
+
+    const pag = $("#pagination");
+    pag.classList.toggle("hidden", totalPages <= 1);
+    if (totalPages > 1) {
+      $("#page-info").textContent = `Page ${state.page} / ${totalPages} — ${all.length} films`;
+      $("#page-prev").disabled = state.page === 1;
+      $("#page-next").disabled = state.page === totalPages;
+      const pageIds = movies.map((m) => m.id);
+      $("#sel-page").checked = pageIds.length > 0 && pageIds.every((id) => state.selected.has(id));
+    }
+
     renderStats();
     renderGenreOptions();
+    updateSelectionUi();
   }
 
   /* ---------- Modal ---------- */
@@ -407,6 +520,36 @@
     render();
   });
 
+  $("#grid").addEventListener("change", (e) => {
+    const cb = e.target.closest("[data-check]");
+    if (!cb) return;
+    if (cb.checked) state.selected.add(cb.dataset.check);
+    else state.selected.delete(cb.dataset.check);
+    updateSelectionUi();
+  });
+
+  $("#btn-tmdb-update").addEventListener("click", tmdbUpdateSelected);
+  $("#btn-progress-cancel").addEventListener("click", () => {
+    state.updating = false;
+  });
+
+  $("#page-prev").addEventListener("click", () => {
+    state.page--;
+    render();
+    window.scrollTo({ top: 0 });
+  });
+  $("#page-next").addEventListener("click", () => {
+    state.page++;
+    render();
+    window.scrollTo({ top: 0 });
+  });
+  $("#sel-page").addEventListener("change", (e) => {
+    const all = visibleMovies();
+    const pageIds = all.slice((state.page - 1) * PER_PAGE, state.page * PER_PAGE).map((m) => m.id);
+    pageIds.forEach((id) => e.target.checked ? state.selected.add(id) : state.selected.delete(id));
+    render();
+  });
+
   $("#grid").addEventListener("click", (e) => {
     const btn = e.target.closest("[data-action]");
     if (!btn) return;
@@ -431,18 +574,22 @@
 
   $("#search").addEventListener("input", (e) => {
     state.query = e.target.value.trim();
+    state.page = 1;
     render();
   });
   $("#filter-genre").addEventListener("change", (e) => {
     state.genre = e.target.value;
+    state.page = 1;
     render();
   });
   $("#filter-status").addEventListener("change", (e) => {
     state.status = e.target.value;
+    state.page = 1;
     render();
   });
   $("#sort").addEventListener("change", (e) => {
     state.sort = e.target.value;
+    state.page = 1;
     render();
   });
   $("#list-view").addEventListener("change", (e) => {
@@ -454,6 +601,8 @@
     if (!state.movies.length) return;
     if (confirm("Effacer TOUTE la collection ? Cette action est irréversible.")) {
       state.movies = [];
+      state.selected.clear();
+      state.page = 1;
       save();
       render();
     }

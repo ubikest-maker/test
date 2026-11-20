@@ -41,11 +41,24 @@
       </label>
       <input type="file" id="import-file" accept=".xml,.txt,text/xml,application/xml,text/plain" hidden>
       <button class="btn" id="btn-import">⬆ Importer XML</button>
+      <button class="btn" id="btn-tmdb-update" hidden title="Met à jour les infos TMDB des films cochés">Mettre à jour TMDB</button>
       <button class="btn primary" id="btn-add">+ Ajouter un film</button>
     </section>
 
+    <div id="progress" class="progress hidden">
+      <span id="progress-text"></span>
+      <button class="btn sm" id="btn-progress-cancel">Arrêter</button>
+    </div>
+
     <section id="grid" class="grid"></section>
     <p id="empty" class="empty hidden">Aucun film ne correspond à votre recherche.</p>
+
+    <nav id="pagination" class="pagination hidden">
+      <button class="btn sm" id="page-prev">← Précédent</button>
+      <span id="page-info"></span>
+      <button class="btn sm" id="page-next">Suivant →</button>
+      <label class="sel-page"><input type="checkbox" id="sel-page"> Sélectionner la page</label>
+    </nav>
   </main>
 
   <!-- Modal formulaire -->

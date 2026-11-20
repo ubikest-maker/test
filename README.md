@@ -21,6 +21,8 @@ python3 -m http.server 8080
 - Recherche par titre, réalisateur ou genre
 - Filtres par genre et statut, tri (titre, année, note, date d'ajout)
 - Vue grille (affiches) ou vue liste
+- **Pagination** : 50 films par page (Précédent / Suivant), compatible avec recherche et filtres
+- **Sélection multiple** : cases à cocher sur chaque carte + « Sélectionner la page », puis bouton **Mettre à jour TMDB (N)** pour mettre à jour en masse les films cochés (barre de progression, arrêt possible, ~150 ms entre chaque requête)
 - Statistiques : nombre de films, films vus, note moyenne
 - Persistance via `localStorage` (données conservées entre sessions)
 
