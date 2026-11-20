@@ -134,6 +134,28 @@
     </div>
   </div>
 
+  <!-- Modal fiche détaillée -->
+  <div class="modal-overlay hidden" id="detail-modal">
+    <div class="modal detail" role="dialog" aria-modal="true" aria-labelledby="detail-title">
+      <button class="btn icon close detail-close" id="btn-detail-close" aria-label="Fermer">✕</button>
+      <div class="detail-body">
+        <div class="detail-poster" id="detail-poster"></div>
+        <div class="detail-info">
+          <h2 id="detail-title"></h2>
+          <p class="detail-meta" id="detail-meta"></p>
+          <div class="detail-badges" id="detail-badges"></div>
+          <p class="detail-actors" id="detail-actors"></p>
+          <p class="detail-synopsis" id="detail-synopsis"></p>
+          <div class="detail-actions">
+            <button class="btn sm" id="btn-detail-toggle"></button>
+            <button class="btn sm" id="btn-detail-edit">Modifier</button>
+            <button class="btn sm danger ghost" id="btn-detail-delete">Supprimer</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Modal résultats TMDB -->
   <div class="modal-overlay hidden" id="tmdb-results">
     <div class="modal" role="dialog" aria-modal="true">

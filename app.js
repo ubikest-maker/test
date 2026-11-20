@@ -370,6 +370,40 @@
       .join("");
   }
 
+  /* ---------- Fiche détaillée ---------- */
+
+  let detailId = null;
+
+  function openDetail(id) {
+    const m = state.movies.find((x) => x.id === id);
+    if (!m) return;
+    detailId = id;
+    $("#detail-poster").innerHTML = m.poster
+      ? `<img src="${escapeHtml(m.poster)}" alt="Affiche de ${escapeHtml(m.title)}"
+          onerror="this.parentElement.textContent='🎞️'">`
+      : "🎞️";
+    $("#detail-title").textContent = m.title;
+    $("#detail-meta").textContent = [
+      m.director && "Réalisé par " + m.director,
+      m.year,
+      m.runtime && m.runtime + " min",
+    ].filter(Boolean).join(" · ");
+    $("#detail-badges").innerHTML =
+      `<span class="badge ${m.status === "vu" ? "vu" : ""}">${m.status === "vu" ? "Vu ✓" : "À voir"}</span>` +
+      (m.rating != null ? `<span class="rating-pill">★ ${m.rating}</span>` : "");
+    $("#detail-actors").textContent = m.actors ? "Avec : " + m.actors : "";
+    $("#detail-actors").classList.toggle("hidden", !m.actors);
+    $("#detail-synopsis").textContent = m.notes || "";
+    $("#detail-synopsis").classList.toggle("hidden", !m.notes);
+    $("#btn-detail-toggle").textContent = m.status === "vu" ? "Marquer à voir" : "Marquer vu";
+    $("#detail-modal").classList.remove("hidden");
+  }
+
+  function closeDetail() {
+    $("#detail-modal").classList.add("hidden");
+    detailId = null;
+  }
+
   function cardHtml(m) {
     const poster = m.poster
       ? `<img src="${escapeHtml(m.poster)}" alt="Affiche de ${escapeHtml(m.title)}" loading="lazy"
@@ -388,9 +422,9 @@
 
     return `
       <article class="card" data-id="${m.id}">
-        <div class="poster-wrap">${poster}${badge}${rating}</div>
+        <div class="poster-wrap clickable" data-action="detail" title="Voir la fiche">${poster}${badge}${rating}</div>
         <div class="card-body">
-          <h3 class="card-title">${escapeHtml(m.title)}</h3>
+          <h3 class="card-title clickable" data-action="detail">${escapeHtml(m.title)}</h3>
           <p class="card-meta">${[
             escapeHtml(m.director),
             m.year,
@@ -497,6 +531,7 @@
     if (e.key === "Escape") {
       closeModal();
       $("#tmdb-results").classList.add("hidden");
+      closeDetail();
     }
   });
 
@@ -529,6 +564,33 @@
   });
 
   $("#btn-tmdb-update").addEventListener("click", tmdbUpdateSelected);
+
+  $("#btn-detail-close").addEventListener("click", closeDetail);
+  $("#detail-modal").addEventListener("click", (e) => {
+    if (e.target === $("#detail-modal")) closeDetail();
+  });
+  $("#btn-detail-toggle").addEventListener("click", () => {
+    const m = state.movies.find((x) => x.id === detailId);
+    if (!m) return;
+    m.status = m.status === "vu" ? "à voir" : "vu";
+    save();
+    render();
+    openDetail(detailId);
+  });
+  $("#btn-detail-edit").addEventListener("click", () => {
+    const m = state.movies.find((x) => x.id === detailId);
+    if (!m) return;
+    closeDetail();
+    openModal(m);
+  });
+  $("#btn-detail-delete").addEventListener("click", () => {
+    const m = state.movies.find((x) => x.id === detailId);
+    if (!m) return;
+    if (confirm(`Supprimer « ${m.title} » de la collection ?`)) {
+      closeDetail();
+      deleteMovie(m.id);
+    }
+  });
   $("#btn-progress-cancel").addEventListener("click", () => {
     state.updating = false;
   });
@@ -563,6 +625,9 @@
         break;
       case "edit":
         openModal(movie);
+        break;
+      case "detail":
+        openDetail(movie.id);
         break;
       case "toggle":
         movie.status = movie.status === "vu" ? "à voir" : "vu";
