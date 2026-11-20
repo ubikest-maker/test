@@ -83,7 +83,8 @@
   async function importFromXml(file) {
     let doc;
     try {
-      const text = await file.text();
+      const text = (await file.text())
+        .replace(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g, "");
       doc = new DOMParser().parseFromString(text, "application/xml");
     } catch {
       alert("Impossible de lire le fichier : XML invalide.");
