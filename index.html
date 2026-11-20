@@ -61,6 +61,12 @@
           <label for="f-title">Titre *</label>
           <input type="text" id="f-title" required placeholder="Ex : Interstellar">
         </div>
+        <div class="form-row tmdb-row">
+          <div class="tmdb-controls">
+            <input type="text" id="f-tmdb-key" placeholder="Clé API TMDB (gratuite sur themoviedb.org)">
+            <button type="button" class="btn" id="btn-fetch" title="Récupérer année, réalisateur, acteurs, affiche… depuis TMDB">🔎 TMDB</button>
+          </div>
+        </div>
         <div class="form-grid">
           <div>
             <label for="f-year">Année</label>
@@ -96,6 +102,10 @@
           </div>
         </div>
         <div class="form-row">
+          <label for="f-actors">Acteurs</label>
+          <input type="text" id="f-actors" placeholder="Ex : Humphrey Bogart, Mary Astor">
+        </div>
+        <div class="form-row">
           <label for="f-poster">URL de l'affiche (optionnel)</label>
           <input type="url" id="f-poster" placeholder="https://…">
         </div>
@@ -108,6 +118,17 @@
           <button type="submit" class="btn primary">Enregistrer</button>
         </div>
       </form>
+    </div>
+  </div>
+
+  <!-- Modal résultats TMDB -->
+  <div class="modal-overlay hidden" id="tmdb-results">
+    <div class="modal" role="dialog" aria-modal="true">
+      <div class="modal-head">
+        <h2>Choisir le film</h2>
+        <button class="btn icon close" id="btn-results-close" aria-label="Fermer">✕</button>
+      </div>
+      <div id="results-list"></div>
     </div>
   </div>
 

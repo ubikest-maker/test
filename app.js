@@ -47,6 +47,94 @@
     render();
   }
 
+  /* ---------- Récupération d'infos TMDB ---------- */
+
+  const TMDB_KEY_STORAGE = "movie-collection:tmdb-key";
+  const tmdbKey = () => localStorage.getItem(TMDB_KEY_STORAGE) || "";
+
+  async function tmdbFetch(url) {
+    let res;
+    try {
+      res = await fetch(url);
+    } catch {
+      alert("Requête TMDB impossible (connexion ou bloqueur de publicités ?).");
+      return null;
+    }
+    if (res.status === 401) {
+      alert("Clé API TMDB invalide ou non confirmée (erreur 401).");
+      return null;
+    }
+    if (!res.ok) {
+      alert("Erreur TMDB : HTTP " + res.status);
+      return null;
+    }
+    return res.json();
+  }
+
+  async function fillFromTmdbId(id, key) {
+    const url = "https://api.themoviedb.org/3/movie/" + id +
+      "?api_key=" + encodeURIComponent(key) +
+      "&language=fr-FR&append_to_response=credits";
+    const m = await tmdbFetch(url);
+    if (!m) return;
+
+    $("#f-title").value = m.title || $("#f-title").value;
+    $("#f-year").value = (m.release_date || "").slice(0, 4) || "";
+    $("#f-director").value = (m.credits?.crew || [])
+      .filter((c) => c.job === "Director")
+      .map((c) => c.name).join(", ");
+    $("#f-actors").value = (m.credits?.cast || [])
+      .slice(0, 6).map((c) => c.name).join(", ");
+    $("#f-genre").value = (m.genres || []).map((g) => g.name).join(", ");
+    $("#f-runtime").value = m.runtime || "";
+    $("#f-rating").value = m.vote_average != null ? m.vote_average.toFixed(1) : "";
+    $("#f-poster").value = m.poster_path
+      ? "https://image.tmdb.org/t/p/w500" + m.poster_path : "";
+    $("#f-notes").value = m.overview || "";
+  }
+
+  async function tmdbSearchAndFill() {
+    const key = $("#f-tmdb-key").value.trim();
+    if (!key) {
+      alert("Saisissez d'abord votre clé API TMDB (gratuite : themoviedb.org -> Paramètres -> API).");
+      $("#f-tmdb-key").focus();
+      return;
+    }
+    localStorage.setItem(TMDB_KEY_STORAGE, key);
+
+    const title = $("#f-title").value.trim();
+    if (!title) {
+      alert("Saisissez d'abord un titre, puis cliquez sur 🔎 TMDB.");
+      $("#f-title").focus();
+      return;
+    }
+
+    const year = $("#f-year").value;
+    let url = "https://api.themoviedb.org/3/search/movie?api_key=" +
+      encodeURIComponent(key) + "&language=fr-FR&query=" + encodeURIComponent(title);
+    if (year) url += "&year=" + encodeURIComponent(year);
+
+    const data = await tmdbFetch(url);
+    if (!data) return;
+    const results = (data.results || []).slice(0, 8);
+    if (!results.length) {
+      alert("Aucun résultat TMDB pour ce titre.");
+      return;
+    }
+
+    if (results.length === 1) {
+      await fillFromTmdbId(results[0].id, key);
+      return;
+    }
+
+    $("#results-list").innerHTML = results.map((r) => {
+      const y = (r.release_date || "").slice(0, 4) || "?";
+      return `<button type="button" class="btn result" data-tid="${r.id}" data-key="${encodeURIComponent(key)}">` +
+        `${escapeHtml(r.title)} <span class="muted">(${y}) — ★ ${(r.vote_average ?? 0).toFixed(1)}</span></button>`;
+    }).join("");
+    $("#tmdb-results").classList.remove("hidden");
+  }
+
   /* ---------- Import XML (export Filmotech : Filmotech_Films > Film) ---------- */
 
   const txt = (parent, tag) => parent.querySelector(tag)?.textContent?.trim() || "";
@@ -60,6 +148,7 @@
 
   function mapFilmotechFilm(film) {
     const filmVu = txt(film, "FilmVu").toUpperCase() === "OUI";
+    const acteurs = txt(film, "Acteurs").split("\n").map((a) => a.trim()).filter(Boolean).join(", ");
     const note = Math.min(10, parseFloat(txt(film, "Note").replace(",", ".")) || 0);
     const duree = parseInt(txt(film, "Duree"), 10) || null;
     const annee = parseInt(txt(film, "Annee"), 10) || null;
@@ -68,6 +157,7 @@
 
     return {
       title: txt(film, "TitreVF") || txt(film, "TitreVO") || "Sans titre",
+      actors: acteurs,
       year: annee,
       director: realisateur,
       genre: txt(film, "Genre"),
@@ -196,6 +286,8 @@
     const badge = `<span class="badge ${m.status === "vu" ? "vu" : ""}">${
       m.status === "vu" ? "Vu ✓" : "À voir"
     }</span>`;
+    const actors = m.actors
+      ? `<p class="card-actors">Avec : ${escapeHtml(m.actors)}</p>` : "";
     const notes = m.notes ? `<p class="card-notes">${escapeHtml(m.notes)}</p>` : "";
 
     return `
@@ -209,6 +301,7 @@
             m.genre && escapeHtml(m.genre),
             m.runtime && `${m.runtime} min`,
           ].filter(Boolean).join(" · ")}</p>
+          ${actors}
           ${notes}
         </div>
         <div class="card-actions">
@@ -240,6 +333,8 @@
     $("#f-title").value = movie?.title || "";
     $("#f-year").value = movie?.year ?? "";
     $("#f-director").value = movie?.director || "";
+    $("#f-actors").value = movie?.actors || "";
+    $("#f-tmdb-key").value = tmdbKey();
     $("#f-genre").value = movie?.genre || "";
     $("#f-status").value = movie?.status || "à voir";
     $("#f-rating").value = movie?.rating ?? "";
@@ -259,6 +354,21 @@
 
   $("#btn-add").addEventListener("click", () => openModal());
 
+  $("#btn-fetch").addEventListener("click", tmdbSearchAndFill);
+  $("#tmdb-results").addEventListener("click", async (e) => {
+    const btn = e.target.closest("[data-tid]");
+    if (btn) {
+      $("#tmdb-results").classList.add("hidden");
+      await fillFromTmdbId(btn.dataset.tid, decodeURIComponent(btn.dataset.key));
+    }
+  });
+  $("#btn-results-close").addEventListener("click", () => {
+    $("#tmdb-results").classList.add("hidden");
+  });
+  $("#tmdb-results").addEventListener("click", (e) => {
+    if (e.target === $("#tmdb-results")) $("#tmdb-results").classList.add("hidden");
+  });
+
   $("#btn-import").addEventListener("click", () => $("#import-file").click());
   $("#import-file").addEventListener("change", (e) => {
     const file = e.target.files[0];
@@ -271,7 +381,10 @@
     if (e.target === $("#modal")) closeModal();
   });
   document.addEventListener("keydown", (e) => {
-    if (e.key === "Escape") closeModal();
+    if (e.key === "Escape") {
+      closeModal();
+      $("#tmdb-results").classList.add("hidden");
+    }
   });
 
   $("#movie-form").addEventListener("submit", (e) => {
@@ -282,6 +395,7 @@
       title: $("#f-title").value.trim(),
       year: num($("#f-year").value),
       director: $("#f-director").value.trim(),
+      actors: $("#f-actors").value.trim(),
       genre: $("#f-genre").value.trim(),
       status: $("#f-status").value,
       rating: num($("#f-rating").value),

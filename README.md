@@ -14,7 +14,8 @@ python3 -m http.server 8080
 
 ## Fonctionnalités
 
-- Ajouter / modifier / supprimer des films (titre, année, réalisateur, genre, statut, note 0–10, durée, affiche, notes)
+- Ajouter / modifier / supprimer des films (titre, année, réalisateur, acteurs, genre, statut, note 0–10, durée, affiche, notes)
+- **Récupération d'infos TMDB** : bouton 🔎 TMDB dans la fenêtre d'ajout/modification — recherche par titre ( année si saisie), sélection du film parmi les résultats, remplissage automatique : titre, année, réalisateur, acteurs, genres, durée, note, affiche, synopsis. Nécessite une **clé API gratuite** créée sur [themoviedb.org](https://www.themoviedb.org/settings/api) (saisie une fois dans la fenêtre, mémorisée dans le navigateur). Allociné et IMDB ne proposent pas d'API appelable depuis un navigateur (CORS), TMDB est donc le fournisseur utilisé.
 - **Import XML** au format [Filmotech](https://www.filmotech.fr) (`<Filmotech_Films><Film>…`), avec détection des doublons ; l'affiche est récupérée dans la section `[XBMC-POSTERS]` des `Commentaires` et le statut d'après `FilmVu`
 - Marquer un film comme « vu » ou « à voir »
 - Recherche par titre, réalisateur ou genre
