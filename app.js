@@ -47,6 +47,81 @@
     render();
   }
 
+  /* ---------- Import XML (export Filmotech : Filmotech_Films > Film) ---------- */
+
+  const txt = (parent, tag) => parent.querySelector(tag)?.textContent?.trim() || "";
+
+  function extractPoster(commentaires) {
+    const block = commentaires.match(/\[XBMC-POSTERS\]([\s\S]*?)\[\/XBMC-POSTERS\]/);
+    const source = block ? block[1] : commentaires;
+    const url = source.match(/https?:\/\/\S+/);
+    return url ? url[0] : "";
+  }
+
+  function mapFilmotechFilm(film) {
+    const filmVu = txt(film, "FilmVu").toUpperCase() === "OUI";
+    const note = Math.min(10, parseFloat(txt(film, "Note").replace(",", ".")) || 0);
+    const duree = parseInt(txt(film, "Duree"), 10) || null;
+    const annee = parseInt(txt(film, "Annee"), 10) || null;
+    const externId = "filmotech-" + (txt(film, "ID") || encodeURIComponent(txt(film, "TitreVF")));
+    const realisateur = (txt(film, "Realisateurs").split("\n")[0] || "").trim();
+
+    return {
+      title: txt(film, "TitreVF") || txt(film, "TitreVO") || "Sans titre",
+      year: annee,
+      director: realisateur,
+      genre: txt(film, "Genre"),
+      status: filmVu ? "vu" : "à voir",
+      rating: note > 0 ? note : null,
+      runtime: duree,
+      poster: extractPoster(txt(film, "Commentaires")),
+      notes: txt(film, "Synopsis"),
+      externalId: externId,
+    };
+  }
+
+  async function importFromXml(file) {
+    let doc;
+    try {
+      const text = await file.text();
+      doc = new DOMParser().parseFromString(text, "application/xml");
+    } catch {
+      alert("Impossible de lire le fichier : XML invalide.");
+      return;
+    }
+    if (doc.querySelector("parsererror")) {
+      alert("Impossible de lire le fichier : XML invalide.");
+      return;
+    }
+
+    const films = doc.querySelectorAll("Film");
+    if (!films.length) {
+      alert('Aucun élément <Film> trouvé. Structure attendue : export Filmotech (<Filmotech_Films><Film>…).');
+      return;
+    }
+
+    const externIds = new Set(state.movies.map((m) => m.externalId).filter(Boolean));
+    let added = 0, skipped = 0;
+
+    films.forEach((film) => {
+      const movie = mapFilmotechFilm(film);
+      if (externIds.has(movie.externalId)) {
+        skipped++;
+        return;
+      }
+      movie.id = crypto.randomUUID();
+      movie.addedAt = new Date().toISOString();
+      state.movies.push(movie);
+      externIds.add(movie.externalId);
+      added++;
+    });
+
+    save();
+    render();
+    alert(`Import terminé : ${added} film${added > 1 ? "s" : ""} ajouté${added > 1 ? "s" : ""}` +
+      (skipped ? `, ${skipped} ignoré${skipped > 1 ? "s" : ""} (déjà présent${skipped > 1 ? "s" : ""})` : "."));
+  }
+
   const escapeHtml = (s = "") =>
     s.replace(/[&<>"']/g, (c) =>
       ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c])
@@ -182,6 +257,13 @@
   /* ---------- Événements ---------- */
 
   $("#btn-add").addEventListener("click", () => openModal());
+
+  $("#btn-import").addEventListener("click", () => $("#import-file").click());
+  $("#import-file").addEventListener("change", (e) => {
+    const file = e.target.files[0];
+    if (file) importFromXml(file);
+    e.target.value = "";
+  });
   $("#btn-cancel").addEventListener("click", closeModal);
   $("#btn-close").addEventListener("click", closeModal);
   $("#modal").addEventListener("click", (e) => {

@@ -15,6 +15,7 @@ python3 -m http.server 8080
 ## Fonctionnalités
 
 - Ajouter / modifier / supprimer des films (titre, année, réalisateur, genre, statut, note 0–10, durée, affiche, notes)
+- **Import XML** au format [Filmotech](https://www.filmotech.fr) (`<Filmotech_Films><Film>…`), avec détection des doublons ; l'affiche est récupérée dans la section `[XBMC-POSTERS]` des `Commentaires` et le statut d'après `FilmVu`
 - Marquer un film comme « vu » ou « à voir »
 - Recherche par titre, réalisateur ou genre
 - Filtres par genre et statut, tri (titre, année, note, date d'ajout)
