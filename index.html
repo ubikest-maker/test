@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Ma Cinémathèque — Gestion de collection de films</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand">
+      <span class="brand-icon">🎬</span>
+      <h1>Ma Cinémathèque</h1>
+    </div>
+    <div class="stats" id="stats"></div>
+  </header>
+
+  <main class="container">
+    <section class="toolbar">
+      <input type="search" id="search" placeholder="Rechercher un film, un réalisateur…" aria-label="Recherche">
+      <select id="filter-genre" aria-label="Filtrer par genre">
+        <option value="">Tous les genres</option>
+      </select>
+      <select id="filter-status" aria-label="Filtrer par statut">
+        <option value="">Tous les statuts</option>
+        <option value="à voir">À voir</option>
+        <option value="vu">Vu</option>
+      </select>
+      <select id="sort" aria-label="Trier">
+        <option value="title-asc">Titre (A→Z)</option>
+        <option value="title-desc">Titre (Z→A)</option>
+        <option value="year-desc">Année (récent)</option>
+        <option value="year-asc">Année (ancien)</option>
+        <option value="rating-desc">Note (meilleure)</option>
+        <option value="rating-asc">Note (pire)</option>
+        <option value="added-desc">Ajout récent</option>
+      </select>
+      <label class="view-toggle" title="Changer d'affichage">
+        <input type="checkbox" id="list-view">
+        <span>Vue liste</span>
+      </label>
+      <button class="btn primary" id="btn-add">+ Ajouter un film</button>
+    </section>
+
+    <section id="grid" class="grid"></section>
+    <p id="empty" class="empty hidden">Aucun film ne correspond à votre recherche.</p>
+  </main>
+
+  <!-- Modal formulaire -->
+  <div class="modal-overlay hidden" id="modal">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+      <div class="modal-head">
+        <h2 id="modal-title">Ajouter un film</h2>
+        <button class="btn icon close" id="btn-close" aria-label="Fermer">✕</button>
+      </div>
+      <form id="movie-form">
+        <input type="hidden" id="movie-id">
+        <div class="form-row">
+          <label for="f-title">Titre *</label>
+          <input type="text" id="f-title" required placeholder="Ex : Interstellar">
+        </div>
+        <div class="form-grid">
+          <div>
+            <label for="f-year">Année</label>
+            <input type="number" id="f-year" min="1888" max="2100" placeholder="2014">
+          </div>
+          <div>
+            <label for="f-director">Réalisateur</label>
+            <input type="text" id="f-director" placeholder="Ex : Christopher Nolan">
+          </div>
+        </div>
+        <div class="form-grid">
+          <div>
+            <label for="f-genre">Genre</label>
+            <input type="text" id="f-genre" list="genre-list" placeholder="Ex : Science-fiction">
+            <datalist id="genre-list"></datalist>
+          </div>
+          <div>
+            <label for="f-status">Statut</label>
+            <select id="f-status">
+              <option value="à voir">À voir</option>
+              <option value="vu">Vu</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-grid">
+          <div>
+            <label for="f-rating">Note (0–10)</label>
+            <input type="number" id="f-rating" min="0" max="10" step="0.5" placeholder="—">
+          </div>
+          <div>
+            <label for="f-runtime">Durée (min)</label>
+            <input type="number" id="f-runtime" min="1" placeholder="169">
+          </div>
+        </div>
+        <div class="form-row">
+          <label for="f-poster">URL de l'affiche (optionnel)</label>
+          <input type="url" id="f-poster" placeholder="https://…">
+        </div>
+        <div class="form-row">
+          <label for="f-notes">Notes personnelles</label>
+          <textarea id="f-notes" rows="3" placeholder="Vos impressions…"></textarea>
+        </div>
+        <div class="modal-actions">
+          <button type="button" class="btn" id="btn-cancel">Annuler</button>
+          <button type="submit" class="btn primary">Enregistrer</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <footer class="app-footer">
+    <button class="btn danger ghost" id="btn-clear">Effacer toute la collection</button>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>
